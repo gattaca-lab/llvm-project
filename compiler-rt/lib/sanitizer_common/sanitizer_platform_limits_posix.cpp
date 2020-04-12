@@ -90,7 +90,7 @@
 #if SANITIZER_LINUX
 # include <utime.h>
 # include <sys/ptrace.h>
-# if defined(__mips64) || defined(__aarch64__) || defined(__arm__)
+# if defined(__mips64) || defined(__aarch64__) || defined(__arm__) || (defined(__riscv) && (__riscv_xlen == 64))
 #  include <asm/ptrace.h>
 #  ifdef __arm__
 typedef struct user_fpregs elf_fpregset_t;
@@ -305,10 +305,13 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
 #if SANITIZER_LINUX && !SANITIZER_ANDROID && \
     (defined(__i386) || defined(__x86_64) || defined(__mips64) || \
       defined(__powerpc64__) || defined(__aarch64__) || defined(__arm__) || \
-      defined(__s390__))
+      defined(__s390__) || (defined(__riscv) && (__riscv_xlen == 64)))
 #if defined(__mips64) || defined(__powerpc64__) || defined(__arm__)
   unsigned struct_user_regs_struct_sz = sizeof(struct pt_regs);
   unsigned struct_user_fpregs_struct_sz = sizeof(elf_fpregset_t);
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  unsigned struct_user_regs_struct_sz = sizeof(struct user_regs_struct);
+  unsigned struct_user_fpregs_struct_sz = sizeof(struct __riscv_q_ext_state);
 #elif defined(__aarch64__)
   unsigned struct_user_regs_struct_sz = sizeof(struct user_pt_regs);
   unsigned struct_user_fpregs_struct_sz = sizeof(struct user_fpsimd_state);
@@ -320,7 +323,7 @@ unsigned struct_ElfW_Phdr_sz = sizeof(Elf_Phdr);
   unsigned struct_user_fpregs_struct_sz = sizeof(struct user_fpregs_struct);
 #endif // __mips64 || __powerpc64__ || __aarch64__
 #if defined(__x86_64) || defined(__mips64) || defined(__powerpc64__) || \
-    defined(__aarch64__) || defined(__arm__) || defined(__s390__)
+    defined(__aarch64__) || defined(__arm__) || defined(__s390__) || (defined(__riscv) && (__riscv_xlen == 64))
   unsigned struct_user_fpxregs_struct_sz = 0;
 #else
   unsigned struct_user_fpxregs_struct_sz = sizeof(struct user_fpxregs_struct);

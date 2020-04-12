@@ -279,7 +279,7 @@
 #if SI_LINUX_NOT_ANDROID && \
   (defined(__i386) || defined(__x86_64) || defined(__mips64) || \
     defined(__powerpc64__) || defined(__aarch64__) || defined(__arm__) || \
-    defined(__s390__))
+    defined(__s390__) || (defined(__riscv) && (__riscv_xlen == 64)))
 #define SANITIZER_INTERCEPT_PTRACE 1
 #else
 #define SANITIZER_INTERCEPT_PTRACE 0

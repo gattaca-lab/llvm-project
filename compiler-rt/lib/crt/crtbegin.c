@@ -52,6 +52,10 @@ __attribute__((section(".init_array"),
 __asm__(".pushsection .init,\"ax\",@progbits\n\t"
     "call " __USER_LABEL_PREFIX__ "__do_init\n\t"
     ".popsection");
+#elif defined(__riscv)
+__asm__(".pushsection .init,\"ax\",%progbits\n\t"
+    "call " __USER_LABEL_PREFIX__ "__do_init\n\t"
+    ".popsection");
 #elif defined(__arm__) || defined(__aarch64__)
 __asm__(".pushsection .init,\"ax\",%progbits\n\t"
     "bl " __USER_LABEL_PREFIX__ "__do_init\n\t"

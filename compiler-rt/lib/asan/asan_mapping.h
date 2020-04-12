@@ -161,6 +161,7 @@ static const u64 kDefaultShadowOffset64 = 1ULL << 44;
 static const u64 kDefaultShort64bitShadowOffset =
     0x7FFFFFFF & (~0xFFFULL << kDefaultShadowScale);  // < 2G.
 static const u64 kAArch64_ShadowOffset64 = 1ULL << 36;
+static const u64 kRiscv64_ShadowOffset64 = 1ULL << 36;
 static const u64 kMIPS32_ShadowOffset32 = 0x0aaa0000;
 static const u64 kMIPS64_ShadowOffset64 = 1ULL << 37;
 static const u64 kPPC64_ShadowOffset64 = 1ULL << 44;
@@ -206,6 +207,8 @@ static const u64 kMyriadCacheBitMask32 = 0x40000000ULL;
 #else
 #  if SANITIZER_IOS
 #    define SHADOW_OFFSET __asan_shadow_memory_dynamic_address
+#  elif (defined(__riscv) && (__riscv_xlen == 64))
+#    define SHADOW_OFFSET kRiscv64_ShadowOffset64
 #  elif defined(__aarch64__)
 #    define SHADOW_OFFSET kAArch64_ShadowOffset64
 #  elif defined(__powerpc64__)

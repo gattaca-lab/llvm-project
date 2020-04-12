@@ -632,14 +632,15 @@ NOINLINE void BuiltinLongJmpFunc1(jmp_buf buf) {
   int *A = Ident(&a);
   int *B = Ident(&b);
   *A = *B;
-  __builtin_longjmp((void**)buf, 1);
+  assert(0);
+  // __builtin_longjmp((void**)buf, 1);
 }
 
 // Does not work on ARM:
 // https://github.com/google/sanitizers/issues/185
 TEST(AddressSanitizer, BuiltinLongJmpTest) {
   static jmp_buf buf;
-  if (!__builtin_setjmp((void**)buf)) {
+  if (!/*__builtin_setjmp((void**)buf)*/false) {
     BuiltinLongJmpFunc1(buf);
   } else {
     TouchStackFunc();

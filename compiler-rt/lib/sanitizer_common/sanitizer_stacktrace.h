@@ -12,6 +12,10 @@
 #ifndef SANITIZER_STACKTRACE_H
 #define SANITIZER_STACKTRACE_H
 
+#if (defined(__riscv) && (__riscv_xlen == 64))
+#include <assert.h>
+#endif
+
 #include "sanitizer_internal_defs.h"
 
 namespace __sanitizer {
@@ -85,6 +89,9 @@ uptr StackTrace::GetPreviousInstructionPc(uptr pc) {
   return pc - 4;
 #elif defined(__sparc__) || defined(__mips__)
   return pc - 8;
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  assert(0);
+  return pc - 123;
 #else
   return pc - 1;
 #endif

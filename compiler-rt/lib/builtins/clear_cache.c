@@ -10,6 +10,10 @@
 #include <assert.h>
 #include <stddef.h>
 
+#if (defined(__riscv) && (__riscv_xlen == 64))
+#include <assert.h>
+#endif
+
 #if __APPLE__
 #include <libkern/OSCacheControl.h>
 #endif
@@ -84,6 +88,8 @@ void __clear_cache(void *start, void *end) {
 #else
   compilerrt_abort();
 #endif
+#elif (defined(__riscv) && (__riscv_xlen == 64)) && defined(__mips__)
+  assert(0);
 #elif defined(__linux__) && defined(__mips__)
   const uintptr_t start_int = (uintptr_t)start;
   const uintptr_t end_int = (uintptr_t)end;

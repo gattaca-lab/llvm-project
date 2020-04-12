@@ -13,6 +13,10 @@
 
 #include "sanitizer_platform.h"
 
+#if (defined(__riscv) && (__riscv_xlen == 64))
+#include <assert.h>
+#endif
+
 #if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD ||                \
     SANITIZER_OPENBSD || SANITIZER_SOLARIS
 
@@ -263,7 +267,7 @@ void InitTlsSize() { }
 
 #if (defined(__x86_64__) || defined(__i386__) || defined(__mips__) ||          \
      defined(__aarch64__) || defined(__powerpc64__) || defined(__s390__) ||    \
-     defined(__arm__)) &&                                                      \
+     defined(__arm__) || (defined(__riscv) && (__riscv_xlen == 64))) &&                                                      \
     SANITIZER_LINUX && !SANITIZER_ANDROID
 // sizeof(struct pthread) from glibc.
 static atomic_uintptr_t thread_descriptor_size;
@@ -303,6 +307,9 @@ uptr ThreadDescriptorSize() {
 #elif defined(__mips__)
   // TODO(sagarthakur): add more values as per different glibc versions.
   val = FIRST_32_SECOND_64(1152, 1776);
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  // The sizeof (struct pthread) is the same from GLIBC 2.17 to 2.22.
+  val = 1776;
 #elif defined(__aarch64__)
   // The sizeof (struct pthread) is the same from GLIBC 2.17 to 2.22.
   val = 1776;
@@ -360,6 +367,9 @@ uptr ThreadSelf() {
 # elif defined(__aarch64__) || defined(__arm__)
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer()) -
                                       ThreadDescriptorSize();
+# elif (defined(__riscv) && (__riscv_xlen == 64))
+  (void)descr_addr;
+  assert(0);
 # elif defined(__s390__)
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer());
 # elif defined(__powerpc64__)
@@ -430,7 +440,8 @@ static void GetTls(uptr *addr, uptr *size) {
   *addr -= *size;
   *addr += ThreadDescriptorSize();
 # elif defined(__mips__) || defined(__aarch64__) || defined(__powerpc64__) \
-    || defined(__arm__)
+    || defined(__arm__) || \
+    (defined(__riscv) && (__riscv_xlen == 64))
   *addr = ThreadSelf();
   *size = GetTlsSize();
 # else
@@ -487,7 +498,8 @@ uptr GetTlsSize() {
   uptr addr, size;
   GetTls(&addr, &size);
   return size;
-#elif defined(__mips__) || defined(__powerpc64__)
+#elif defined(__mips__) || defined(__powerpc64__) || \
+    (defined(__riscv) && (__riscv_xlen == 64))
   return RoundUpTo(g_tls_size + TlsPreTcbSize(), 16);
 #else
   return g_tls_size;

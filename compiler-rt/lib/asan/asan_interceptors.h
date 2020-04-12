@@ -112,7 +112,8 @@ void InitializePlatformInterceptors();
 #endif
 
 #if SANITIZER_LINUX && (defined(__arm__) || defined(__aarch64__) || \
-                        defined(__i386__) || defined(__x86_64__))
+                        defined(__i386__) || defined(__x86_64__) || \
+                        (defined(__riscv) && (__riscv_xlen == 64)))
 # define ASAN_INTERCEPT_VFORK 1
 #else
 # define ASAN_INTERCEPT_VFORK 0

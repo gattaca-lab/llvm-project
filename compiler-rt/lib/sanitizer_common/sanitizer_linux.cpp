@@ -13,6 +13,10 @@
 
 #include "sanitizer_platform.h"
 
+#if (defined(__riscv) && (__riscv_xlen == 64))
+#include <assert.h>
+#endif
+
 #if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD || \
     SANITIZER_OPENBSD || SANITIZER_SOLARIS
 
@@ -154,6 +158,8 @@ namespace __sanitizer {
 
 #if SANITIZER_LINUX && defined(__x86_64__)
 #include "sanitizer_syscall_linux_x86_64.inc"
+#elif SANITIZER_LINUX && (defined(__riscv) && (__riscv_xlen == 64))
+#include "sanitizer_syscall_linux_riscv64.inc"
 #elif SANITIZER_LINUX && defined(__aarch64__)
 #include "sanitizer_syscall_linux_aarch64.inc"
 #elif SANITIZER_LINUX && defined(__arm__)
@@ -700,7 +706,7 @@ struct linux_dirent {
 };
 #else
 struct linux_dirent {
-#if SANITIZER_X32 || defined(__aarch64__)
+#if SANITIZER_X32 || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
   u64 d_ino;
   u64 d_off;
 #else
@@ -708,7 +714,7 @@ struct linux_dirent {
   unsigned long      d_off;
 #endif
   unsigned short     d_reclen;
-#ifdef __aarch64__
+#if defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
   unsigned char      d_type;
 #endif
   char               d_name[256];
@@ -1024,7 +1030,7 @@ uptr GetMaxVirtualAddress() {
 #if (SANITIZER_NETBSD || SANITIZER_OPENBSD) && defined(__x86_64__)
   return 0x7f7ffffff000ULL;  // (0x00007f8000000000 - PAGE_SIZE)
 #elif SANITIZER_WORDSIZE == 64
-# if defined(__powerpc64__) || defined(__aarch64__)
+# if defined(__powerpc64__) || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64))
   // On PowerPC64 we have two different address space layouts: 44- and 46-bit.
   // We somehow need to figure out which one we are using now and choose
   // one of 0x00000fffffffffffUL and 0x00003fffffffffffUL.
@@ -1324,6 +1330,60 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                          "i"(__NR_clone),
                          "i"(__NR_exit)
                        : "memory", "$29" );
+  return res;
+}
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
+                    int *parent_tidptr, void *newtls, int *child_tidptr) {
+  long long res;
+  assert(0);
+#if 0
+  if (!fn || !child_stack)
+    return -EINVAL;
+  CHECK_EQ(0, (uptr)child_stack % 16);
+  child_stack = (char *)child_stack - 2 * sizeof(unsigned long long);
+  ((unsigned long long *)child_stack)[0] = (uptr)fn;
+  ((unsigned long long *)child_stack)[1] = (uptr)arg;
+
+  register int (*__fn)(void *)  __asm__("x0") = fn;
+  register void *__stack __asm__("x1") = child_stack;
+  register int   __flags __asm__("x2") = flags;
+  register void *__arg   __asm__("x3") = arg;
+  register int  *__ptid  __asm__("x4") = parent_tidptr;
+  register void *__tls   __asm__("x5") = newtls;
+  register int  *__ctid  __asm__("x6") = child_tidptr;
+
+  __asm__ __volatile__(
+                       "mov x0,x2\n" /* flags  */
+                       "mov x2,x4\n" /* ptid  */
+                       "mov x3,x5\n" /* tls  */
+                       "mov x4,x6\n" /* ctid  */
+                       "mov x8,%9\n" /* clone  */
+
+                       "svc 0x0\n"
+
+                       /* if (%r0 != 0)
+                        *   return %r0;
+                        */
+                       "cmp x0, #0\n"
+                       "bne 1f\n"
+
+                       /* In the child, now. Call "fn(arg)". */
+                       "ldp x1, x0, [sp], #16\n"
+                       "blr x1\n"
+
+                       /* Call _exit(%r0).  */
+                       "mov x8, %10\n"
+                       "svc 0x0\n"
+                     "1:\n"
+
+                       : "=r" (res)
+                       : "i"(-EINVAL),
+                         "r"(__fn), "r"(__stack), "r"(__flags), "r"(__arg),
+                         "r"(__ptid), "r"(__tls), "r"(__ctid),
+                         "i"(__NR_clone), "i"(__NR_exit)
+                       : "x30", "memory");
+#endif
   return res;
 }
 #elif defined(__aarch64__)
@@ -1825,6 +1885,9 @@ SignalContext::WriteFlag SignalContext::GetWriteFlag() const {
   static const uptr FSR_WRITE = 1U << 11;
   uptr fsr = ucontext->uc_mcontext.error_code;
   return fsr & FSR_WRITE ? WRITE : READ;
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  assert(0);
+  return UNKNOWN;
 #elif defined(__aarch64__)
   static const u64 ESR_ELx_WNR = 1U << 6;
   u64 esr;

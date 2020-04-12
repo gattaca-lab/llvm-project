@@ -80,7 +80,7 @@ static void ProtectGap(uptr addr, uptr size) {
 }
 
 static void MaybeReportLinuxPIEBug() {
-#if SANITIZER_LINUX && (defined(__x86_64__) || defined(__aarch64__))
+#if SANITIZER_LINUX && (defined(__x86_64__) || defined(__aarch64__) || (defined(__riscv) && (__riscv_xlen == 64)))
   Report("This might be related to ELF_ET_DYN_BASE change in Linux 4.12.\n");
   Report(
       "See https://github.com/google/sanitizers/issues/856 for possible "

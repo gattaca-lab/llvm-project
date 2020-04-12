@@ -70,6 +70,9 @@ const unsigned struct_kernel_stat64_sz = 96;
 #elif defined(__arm__)
 const unsigned struct_kernel_stat_sz = 64;
 const unsigned struct_kernel_stat64_sz = 104;
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+const unsigned struct_kernel_stat_sz = 128;
+const unsigned struct_kernel_stat64_sz = 104;
 #elif defined(__aarch64__)
 const unsigned struct_kernel_stat_sz = 128;
 const unsigned struct_kernel_stat64_sz = 104;
@@ -797,7 +800,7 @@ typedef void __sanitizer_FILE;
 #if SANITIZER_LINUX && !SANITIZER_ANDROID &&                               \
     (defined(__i386) || defined(__x86_64) || defined(__mips64) ||          \
      defined(__powerpc64__) || defined(__aarch64__) || defined(__arm__) || \
-     defined(__s390__))
+     defined(__s390__) || (defined(__riscv) && (__riscv_xlen == 64)))
 extern unsigned struct_user_regs_struct_sz;
 extern unsigned struct_user_fpregs_struct_sz;
 extern unsigned struct_user_fpxregs_struct_sz;
