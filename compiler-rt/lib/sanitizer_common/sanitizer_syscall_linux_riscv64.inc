@@ -6,104 +6,127 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Implementations of internal_syscall and internal_iserror for Linux/aarch64.
+// Implementations of internal_syscall and internal_iserror for Linux/riscv64.
 //
 //===----------------------------------------------------------------------===//
 
+// About local register variables:
+// https://gcc.gnu.org/onlinedocs/gcc/Local-Register-Variables.html#Local-Register-Variables
+//
+// Kernel ABI...
+// To my surprise I haven't found much information regarding it.
+// Kernel source and internet browsing shows that:
+//  syscall number is passed in a7 (http://man7.org/linux/man-pages/man2/syscall.2.html)
+//  results are return in a0 and a1 (http://man7.org/linux/man-pages/man2/syscall.2.html)
+//  arguments are passed in: a0-a7 (see below)
+//
+//  Regarding the arguments. The only "documentation" I could find is
+//  this comment (!!!) by Bruce Hold on google forums (!!!):
+//    https://groups.google.com/a/groups.riscv.org/forum/#!topic/sw-dev/exbrzM3GZDQ 
+//    Confirmed by inspecting glibc sources.
+//  Great way to document things.
 #define SYSCALL(name) __NR_ ## name
 
+#define INTERNAL_SYSCALL_CLOBBERS "memory"
+
 static uptr __internal_syscall(u64 nr) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0");
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0");
+  __asm__ volatile (
+      "ecall\n\t"
+      : "=r" (a0)
+      : "r" (a7)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall0(n) \
   (__internal_syscall)(n)
 
 static uptr __internal_syscall(u64 nr, u64 arg1) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall1(n, a1) \
   (__internal_syscall)(n, (u64)(a1))
 
 static uptr __internal_syscall(u64 nr, u64 arg1, long arg2) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  register u64 x1 asm("x1") = arg2;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0), "r"(x1)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall2(n, a1, a2) \
   (__internal_syscall)(n, (u64)(a1), (long)(a2))
 
 static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  register u64 x1 asm("x1") = arg2;
-  register u64 x2 asm("x2") = arg3;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0), "r"(x1), "r"(x2)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  register long int a2 asm ("a2") = arg3;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1), "r" (a2)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall3(n, a1, a2, a3) \
   (__internal_syscall)(n, (u64)(a1), (long)(a2), (long)(a3))
 
 static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3,
                                u64 arg4) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  register u64 x1 asm("x1") = arg2;
-  register u64 x2 asm("x2") = arg3;
-  register u64 x3 asm("x3") = arg4;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  register long int a2 asm ("a2") = arg3;
+  register long int a3 asm ("a3") = arg4;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1), "r" (a2), "r" (a3)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall4(n, a1, a2, a3, a4) \
   (__internal_syscall)(n, (u64)(a1), (long)(a2), (long)(a3), (long)(a4))
 
 static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3,
                                u64 arg4, long arg5) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  register u64 x1 asm("x1") = arg2;
-  register u64 x2 asm("x2") = arg3;
-  register u64 x3 asm("x3") = arg4;
-  register u64 x4 asm("x4") = arg5;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  register long int a2 asm ("a2") = arg3;
+  register long int a3 asm ("a3") = arg4;
+  register long int a4 asm ("a4") = arg5;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1), "r" (a2), "r" (a3), "r" (a4)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall5(n, a1, a2, a3, a4, a5) \
   (__internal_syscall)(n, (u64)(a1), (long)(a2), (long)(a3), (long)(a4), \
@@ -111,24 +134,48 @@ static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3,
 
 static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3,
                                u64 arg4, long arg5, long arg6) {
-#if 0
-  register u64 x8 asm("x8") = nr;
-  register u64 x0 asm("x0") = arg1;
-  register u64 x1 asm("x1") = arg2;
-  register u64 x2 asm("x2") = arg3;
-  register u64 x3 asm("x3") = arg4;
-  register u64 x4 asm("x4") = arg5;
-  register u64 x5 asm("x5") = arg6;
-  asm volatile("svc 0"
-               : "=r"(x0)
-               : "r"(x8), "0"(x0), "r"(x1), "r"(x2), "r"(x3), "r"(x4), "r"(x5)
-               : "memory", "cc");
-  return x0;
-#endif
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  register long int a2 asm ("a2") = arg3;
+  register long int a3 asm ("a3") = arg4;
+  register long int a4 asm ("a4") = arg5;
+  register long int a5 asm ("a5") = arg6;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (a5)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
 }
 #define __internal_syscall6(n, a1, a2, a3, a4, a5, a6) \
   (__internal_syscall)(n, (u64)(a1), (long)(a2), (long)(a3), (long)(a4), \
                        (u64)(a5), (long)(a6))
+
+static uptr __internal_syscall(u64 nr, u64 arg1, long arg2, long arg3,
+                               u64 arg4, long arg5, long arg6, long arg7) {
+  long int ecall_result = 0;
+  register long int a7 asm ("a7") = nr;
+  register long int a0 asm ("a0") = arg1;
+  register long int a1 asm ("a1") = arg2;
+  register long int a2 asm ("a2") = arg3;
+  register long int a3 asm ("a3") = arg4;
+  register long int a4 asm ("a4") = arg5;
+  register long int a5 asm ("a5") = arg6;
+  register long int a6 asm ("a6") = arg7;
+  __asm__ volatile (
+      "ecall\n\t"
+      : "+r" (a0)
+      : "r" (a7), "r" (a1), "r" (a2), "r" (a3), "r" (a4), "r" (a5), "r" (a6)
+      : INTERNAL_SYSCALL_CLOBBERS);
+  ecall_result = a0;
+  return ecall_result;
+}
+#define __internal_syscall7(n, a1, a2, a3, a4, a5, a6, a7) \
+  (__internal_syscall)(n, (u64)(a1), (long)(a2), (long)(a3), (long)(a4), \
+                       (u64)(a5), (long)(a6), (long)(a7))
 
 #define __SYSCALL_NARGS_X(a1, a2, a3, a4, a5, a6, a7, a8, n, ...) n
 #define __SYSCALL_NARGS(...) \
