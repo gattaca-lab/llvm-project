@@ -13,10 +13,6 @@
 
 #include "sanitizer_platform.h"
 
-#if (defined(__riscv) && (__riscv_xlen == 64))
-#include <assert.h>
-#endif
-
 #if SANITIZER_FREEBSD || SANITIZER_LINUX || SANITIZER_NETBSD ||                \
     SANITIZER_OPENBSD || SANITIZER_SOLARIS
 
@@ -330,7 +326,8 @@ uptr ThreadSelfOffset() {
   return kThreadSelfOffset;
 }
 
-#if defined(__mips__) || defined(__powerpc64__)
+#if defined(__mips__) || defined(__powerpc64__) || \
+  (defined(__riscv) && (__riscv_xlen == 64))
 // TlsPreTcbSize includes size of struct pthread_descr and size of tcb
 // head structure. It lies before the static tls blocks.
 static uptr TlsPreTcbSize() {
@@ -338,6 +335,8 @@ static uptr TlsPreTcbSize() {
   const uptr kTcbHead = 16; // sizeof (tcbhead_t)
 # elif defined(__powerpc64__)
   const uptr kTcbHead = 88; // sizeof (tcbhead_t)
+# elif (defined(__riscv) && (__riscv_xlen == 64))
+  const uptr kTcbHead = 16; // sizeof (tcbhead_t)
 # endif
   const uptr kTlsAlign = 16;
   const uptr kTlsPreTcbSize =
@@ -368,8 +367,14 @@ uptr ThreadSelf() {
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer()) -
                                       ThreadDescriptorSize();
 # elif (defined(__riscv) && (__riscv_xlen == 64))
-  (void)descr_addr;
-  assert(0);
+
+  uptr tcb_end;
+  asm volatile("mv %0, tp;\n"
+               : "=r" (tcb_end));
+  // thanks Andrew!
+  const uptr kTlsTcbOffset = 0x800;
+  descr_addr = reinterpret_cast<uptr>(tcb_end - kTlsTcbOffset - TlsPreTcbSize());
+
 # elif defined(__s390__)
   descr_addr = reinterpret_cast<uptr>(__builtin_thread_pointer());
 # elif defined(__powerpc64__)
