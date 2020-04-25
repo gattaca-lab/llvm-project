@@ -350,30 +350,58 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
 
       OutStreamer->EmitLabel(HandleMismatchSym);
     }
-    // FIXME: Calculate proper offsets
+
+    // +---------------------------------+
+    // | Return address (x30) for caller |
+    // | of __hwasan_check_*.            |
+    // +---------------------------------+
+    // | Frame address (x29) for caller  |
+    // | of __hwasan_check_*             |
+    // +---------------------------------+ <-- [SP + 232]
+    // |              ...                |
+    // |                                 |
+    // | Stack frame space for x2 - x28. |
+    // |                                 |
+    // |              ...                |
+    // +---------------------------------+ <-- [SP + 16]
+    // |                                 |
+    // | Saved x1, as __hwasan_check_*   |
+    // | clobbers it.                    |
+    // +---------------------------------+
+    // | Saved x0, likewise above.       |
+    // +---------------------------------+ <-- [x30 / SP]
+    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
+                                     .addReg(RISCV::X2)
+                                     .addReg(RISCV::X2)
+                                     .addImm(-256 - 8 * 2),
+                                 *STI);
+
+    // x10 - arg #0 (a0)
     OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X10)
                                      .addReg(RISCV::X2)
-                                     .addImm(-32),
+                                     .addImm(8 * 10),
                                  *STI);
-    // FIXME: Calculate proper offsets
+    // x11 - arg #1 (a1)
     OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X11)
                                      .addReg(RISCV::X2)
-                                     .addImm(-32),
+                                     .addImm(8 * 11),
                                  *STI);
-    // FIXME: Calculate proper offsets
+
+    // x8 - fp
     OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X8)
                                      .addReg(RISCV::X2)
-                                     .addImm(32),
+                                     .addImm(32 * 8),
                                  *STI);
-    // FIXME: Calculate proper offsets
+    // x1 - ra (in our case it is corrupted most likely)
     OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X1)
                                      .addReg(RISCV::X2)
-                                     .addImm(32),
+                                     .addImm(33 * 8),
                                  *STI);
+
     if (Reg != RISCV::X10)
       OutStreamer->EmitInstruction(MCInstBuilder(RISCV::OR)
                                        .addReg(RISCV::X10)
@@ -381,7 +409,7 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
                                        .addReg(Reg),
                                    *STI);
     OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
-                                     .addReg(RISCV::X1)
+                                     .addReg(RISCV::X11)
                                      .addReg(RISCV::X0)
                                      .addImm(AccessInfo),
                                  *STI);

@@ -235,6 +235,7 @@ AArch64Subtarget::ClassifyGlobalReference(const GlobalValue *GV,
   // that their nominal addresses are tagged and outside of the code model. In
   // AArch64ExpandPseudo::expandMI we emit an additional instruction to set the
   // tag if necessary based on MO_TAGGED.
+
   if (AllowTaggedGlobals && !isa<FunctionType>(GV->getValueType()))
     return AArch64II::MO_NC | AArch64II::MO_TAGGED;
 

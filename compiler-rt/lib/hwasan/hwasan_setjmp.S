@@ -13,8 +13,9 @@
 
 #include "sanitizer_common/sanitizer_asm.h"
 
-#if HWASAN_WITH_INTERCEPTORS && defined(__aarch64__)
+#if HWASAN_WITH_INTERCEPTORS
 #include "sanitizer_common/sanitizer_platform.h"
+#if defined(__aarch64__)
 
 // We want to save the context of the calling function.
 // That requires
@@ -94,7 +95,11 @@ ALIAS __interceptor_sigsetjmp, __sigsetjmp
 
 ALIAS __interceptor_setjmp, _setjmp
 .weak _setjmp
+
+#elif (defined(__riscv) && (__riscv_xlen == 64)) 
+#else
 #endif
+#endif //HWASAN_WITH_INTERCEPTORS
 
 // We do not need executable stack.
 NO_EXEC_STACK_DIRECTIVE

@@ -1118,7 +1118,7 @@ def : Pat<(debugtrap), (EBREAK)>;
 
 // FIXME: replace GRP with other GPR class which excludes X6, X7, X28, X5 as ARM did
 let Predicates = [IsRV64], Uses = [ X5 ],
-    Defs = [ X6, X7, X28, X29, X30, X31 ] in {
+    Defs = [ X1, X6, X7, X28, X29, X30, X31 ] in {
 def HWASAN_CHECK_MEMACCESS : Pseudo<
   (outs), (ins GPR:$ptr, i32imm:$accessinfo),
   [(int_hwasan_check_memaccess X5, GPR:$ptr, (i32 timm:$accessinfo))]>,
