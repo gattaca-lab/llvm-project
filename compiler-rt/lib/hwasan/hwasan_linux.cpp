@@ -408,7 +408,12 @@ static AccessInfo GetAccessInfo(siginfo_t *info, ucontext_t *uc) {
     return AccessInfo{}; // Not ours.
   const uptr size =
       size_log == 0xf ? uc->uc_mcontext.gregs[REG_RSI] : 1U << size_log;
-
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  assert(0);
+  const uptr addr = 0;
+  const uptr size = 0;
+  const bool is_store = false;
+  const bool recover = false;
 #else
 # error Unsupported architecture
 #endif
@@ -449,6 +454,8 @@ static bool HwasanOnSIGTRAP(int signo, siginfo_t *info, ucontext_t *uc) {
 #if defined(__aarch64__)
   uc->uc_mcontext.pc += 4;
 #elif defined(__x86_64__)
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  assert(0);
 #else
 # error Unsupported architecture
 #endif

@@ -114,6 +114,11 @@ __asm__(".pushsection .fini,\"ax\",@progbits\n\t"
     "bl " __USER_LABEL_PREFIX__ "__do_fini\n\t"
     "nop\n\t"
     ".popsection");
+#elif defined(__riscv)
+__asm__(".pushsection .fini,\"ax\",@progbits\n\t"
+    "call " __USER_LABEL_PREFIX__ "__do_fini\n\t"
+    "nop\n\t"
+    ".popsection");
 #elif defined(__sparc__)
 __asm__(".pushsection .fini,\"ax\",@progbits\n\t"
     "call " __USER_LABEL_PREFIX__ "__do_fini\n\t"

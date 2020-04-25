@@ -1104,6 +1104,31 @@ def : Pat<(trap), (UNIMP)>;
 // debugger if possible.
 def : Pat<(debugtrap), (EBREAK)>;
 
+//let Uses = [ X9 ], Defs = [ X16, X17, LR, NZCV ] in {
+//def HWASAN_CHECK_MEMACCESS : Pseudo<
+//  (outs), (ins GPR64noip:$ptr, i32imm:$accessinfo),
+//  [(int_hwasan_check_memaccess X9, GPR64noip:$ptr, (i32 timm:$accessinfo))]>,
+//  Sched<[]>;
+//def HWASAN_CHECK_MEMACCESS_SHORTGRANULES : Pseudo<
+//  (outs), (ins GPR64noip:$ptr, i32imm:$accessinfo),
+//  p
+//  [(int_hwasan_check_memaccess_shortgranules X9, GPR64noip:$ptr, (i32 timm:$accessinfo))]>,
+//  Sched<[]>;
+//}
+
+// FIXME: replace GRP with other GPR class which excludes X6, X7, X28, X5 as ARM did
+let Predicates = [IsRV64], Uses = [ X5 ],
+    Defs = [ X6, X7, X28, X29, X30, X31 ] in {
+def HWASAN_CHECK_MEMACCESS : Pseudo<
+  (outs), (ins GPR:$ptr, i32imm:$accessinfo),
+  [(int_hwasan_check_memaccess X5, GPR:$ptr, (i32 timm:$accessinfo))]>,
+  Sched<[]>;
+def HWASAN_CHECK_MEMACCESS_SHORTGRANULES : Pseudo<
+  (outs), (ins GPR:$ptr, i32imm:$accessinfo),
+  [(int_hwasan_check_memaccess_shortgranules X5, GPR:$ptr , (i32 timm:$accessinfo))]>,
+  Sched<[]>;
+}
+
 //===----------------------------------------------------------------------===//
 // Standard extensions
 //===----------------------------------------------------------------------===//

@@ -578,7 +578,7 @@ static size_t TypeSizeToSizeIndex(uint32_t TypeSize) {
 }
 
 void HWAddressSanitizer::untagPointerOperand(Instruction *I, Value *Addr) {
-  if (TargetTriple.isAArch64())
+  if (TargetTriple.isAArch64() || TargetTriple.isRISCV())
     return;
 
   IRBuilder<> IRB(I);
@@ -610,14 +610,16 @@ void HWAddressSanitizer::instrumentMemAccessInline(Value *Ptr, bool IsWrite,
   const int64_t AccessInfo = Recover * 0x20 + IsWrite * 0x10 + AccessSizeIndex;
   IRBuilder<> IRB(InsertBefore);
 
-  if (!ClInlineAllChecks && TargetTriple.isAArch64() &&
+  if (!ClInlineAllChecks && (TargetTriple.isAArch64() || TargetTriple.isRISCV()) &&
       TargetTriple.isOSBinFormatELF() && !Recover) {
     Module *M = IRB.GetInsertBlock()->getParent()->getParent();
     Ptr = IRB.CreateBitCast(Ptr, Int8PtrTy);
     IRB.CreateCall(Intrinsic::getDeclaration(
                        M, UseShortGranules
                               ? Intrinsic::hwasan_check_memaccess_shortgranules
-                              : Intrinsic::hwasan_check_memaccess),
+                              : TargetTriple.isRISCV() ? // In case of RISCV always use V2
+                                    Intrinsic::hwasan_check_memaccess_shortgranules : 
+                                    Intrinsic::hwasan_check_memaccess),
                    {shadowBase(), Ptr, ConstantInt::get(Int32Ty, AccessInfo)});
     return;
   }
@@ -678,6 +680,8 @@ void HWAddressSanitizer::instrumentMemAccessInline(Value *Ptr, bool IsWrite,
           "{rdi}",
           /*hasSideEffects=*/true);
       break;
+    case Triple::riscv64:
+      assert(0);
     case Triple::aarch64:
     case Triple::aarch64_be:
       // The signal handler will find the data address in x0.
