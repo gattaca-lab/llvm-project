@@ -1888,7 +1888,76 @@ SignalContext::WriteFlag SignalContext::GetWriteFlag() const {
   uptr fsr = ucontext->uc_mcontext.error_code;
   return fsr & FSR_WRITE ? WRITE : READ;
 #elif (defined(__riscv) && (__riscv_xlen == 64))
-  assert(0);
+  uint8_t *exception_source;
+  uint8_t  byte1;
+  uint8_t  byte2;
+  uint8_t  byte3;
+  uint8_t  byte4;
+  uint32_t faulty_instruction;
+  uint32_t op_code;
+
+  // PC has address of EBREAK which is 2 bytes long
+  exception_source = (uint8_t *)(ucontext->uc_mcontext.__gregs[REG_PC]);
+  byte1 = (uint8_t)(*(exception_source + 0));
+  byte2 = (uint8_t)(*(exception_source + 1));
+  byte3 = (uint8_t)(*(exception_source + 2));
+  byte4 = (uint8_t)(*(exception_source + 3));
+  faulty_instruction = (byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24));
+  bool isFaultShort = ((faulty_instruction & 0x3) != 0x3);
+  // faulted insn is not ebreak, not our case?
+  if ((faulty_instruction != 0x100073) && ((faulty_instruction & 0xffff) != 0x9002))
+    return SignalContext::UNKNOWN;
+
+  exception_source += isFaultShort ? 2 : 4;
+  byte1 = (uint8_t)(*(exception_source + 0));
+  byte2 = (uint8_t)(*(exception_source + 1));
+  byte3 = (uint8_t)(*(exception_source + 2));
+  byte4 = (uint8_t)(*(exception_source + 3));
+  // reconstruct instruction
+  faulty_instruction = (byte1 | (byte2 << 8) | (byte3 << 16) | (byte4 << 24));
+  // check if instruction is 2 bytes long instead of 4
+  bool isShort = ((faulty_instruction & 0x3) != 0x3);
+
+  if (isShort)
+  {
+    // reconstruct actual short instruction
+    faulty_instruction = faulty_instruction >> 16;
+    op_code = faulty_instruction & 0x3;
+    uint32_t funct = faulty_instruction >> 13;
+    bool read = false;
+    bool write = false;
+    // opcode is 00
+    if (op_code == 0x0) {
+      if ((funct == 0x1) || (funct == 0x2) || (funct == 0x3))
+        read = true;
+      if ((funct == 0x5) || (funct == 0x6) || (funct == 0x7))
+        write = true; 
+    }
+    else if (op_code == 0x1) {
+      // do nothing since no load/store operations
+    }
+    else if (op_code == 0x2) {
+      if ((funct == 0x1) || (funct == 0x2) || (funct == 0x3))
+        read = true;
+      if ((funct == 0x5) || (funct == 0x6) || (funct == 0x7))
+        write = true;
+    }
+    else {
+      // shouldn't get here anyhow
+      assert(0);
+    }
+    if (read) return READ;
+    else if (write) return WRITE;
+    else return UNKNOWN;
+  } else {
+    // opcode is located in lower 7 bits
+    op_code = faulty_instruction & ((1 << 7) - 1);
+    // load or store could be deducted from the top 2 bit of opcode: 00 for load, 01 for store
+    op_code = op_code >> 5;
+    if (op_code == 0x0) return READ;
+    else if (op_code == 0x1) return WRITE;
+    else return UNKNOWN;
+  }
   return UNKNOWN;
 #elif defined(__aarch64__)
   static const u64 ESR_ELx_WNR = 1U << 6;

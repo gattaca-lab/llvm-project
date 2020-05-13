@@ -685,7 +685,13 @@ void HWAddressSanitizer::instrumentMemAccessInline(Value *Ptr, bool IsWrite,
           /*hasSideEffects=*/true);
       break;
     case Triple::riscv64:
-      assert(0);
+      // The signal handler will find the data address in rdi.
+      Asm = InlineAsm::get(
+          FunctionType::get(IRB.getVoidTy(), {PtrLong->getType()}, false),
+          "ebreak\naddiw x0, x0, " + itostr(0x40 + AccessInfo), "{x10}",
+          "{x11}",
+          /*hasSideEffects=*/true);
+      break;
     case Triple::aarch64:
     case Triple::aarch64_be:
       // The signal handler will find the data address in x0.

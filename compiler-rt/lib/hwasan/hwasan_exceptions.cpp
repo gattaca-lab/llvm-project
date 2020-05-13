@@ -57,8 +57,7 @@ __hwasan_personality_wrapper(int version, _Unwind_Action actions,
 #elif defined(__aarch64__)
     uptr fp = get_gr(context, 29); // x29
 #elif (defined(__riscv) && (__riscv_xlen == 64))
-    assert(0);
-    uptr fp = 0;
+    uptr fp = get_gr(context, 8); // x8
 #else
 #error Unsupported architecture
 #endif
