@@ -197,7 +197,25 @@ typedef unsigned long __hw_sigset_t;
 // Setjmp and longjmp implementations are platform specific, and hence the
 // interception code is platform specific too.  As yet we've only implemented
 // the interception for AArch64.
-typedef unsigned long long __hw_register_buf[22];
+#if 0
+check scv-glibc/sysdeps/riscv/bits/setjmp.h
+typedef struct __jmp_buf_internal_tag
+  {
+    /* Program counter.  */
+    long int __pc;
+    /* Callee-saved registers.  */
+    long int __regs[12];
+    /* Stack pointer.  */
+    long int __sp;
+
+    /* Callee-saved floating point registers.  */
+#if defined __riscv_float_abi_double
+   double __fpregs[12];
+#elif !defined __riscv_float_abi_soft
+# error unsupported FLEN
+#endif
+#endif
+typedef unsigned long long __hw_register_buf[1 + 12 + 1 + 12];
 struct __hw_jmp_buf_struct {
   // NOTE: The machine-dependent definition of `__sigsetjmp'
   // assume that a `__hw_jmp_buf' begins with a `__hw_register_buf' and that

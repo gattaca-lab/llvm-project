@@ -303,6 +303,9 @@ INTERCEPTOR(void, longjmp, __hw_jmp_buf env, int val) {
 #undef SIG_BLOCK
 #undef SIG_SETMASK
 
+
+
+
 #elif (defined(__riscv) && (__riscv_xlen == 64))
 // Get and/or change the set of blocked signals.
 extern "C" int sigprocmask(int __how, const __hw_sigset_t *__restrict __set,
@@ -310,18 +313,14 @@ extern "C" int sigprocmask(int __how, const __hw_sigset_t *__restrict __set,
 #define SIG_BLOCK 0
 #define SIG_SETMASK 2
 extern "C" int __sigjmp_save(__hw_sigjmp_buf env, int savemask) {
-#if 0
   env[0].__mask_was_saved =
       (savemask && sigprocmask(SIG_BLOCK, (__hw_sigset_t *)0,
                                &env[0].__saved_mask) == 0);
-#endif
-  assert(0);
   return 0;
 }
 
 static void __attribute__((always_inline))
 InternalLongjmp(__hw_register_buf env, int retval) {
-#if 0
   // Clear all memory tags on the stack between here and where we're going.
   unsigned long long stack_pointer = env[13];
   // The stack pointer should never be tagged, so we don't need to clear the
@@ -334,58 +333,63 @@ InternalLongjmp(__hw_register_buf env, int retval) {
   // Must implement this ourselves, since we don't know the order of registers
   // in different libc implementations and many implementations mangle the
   // stack pointer so we can't use it without knowing the demangling scheme.
-  register long int retval_tmp asm("x1") = retval;
-  register void *env_address asm("x0") = &env[0];
-  asm volatile("ldp	x19, x20, [%0, #0<<3];"
-               "ldp	x21, x22, [%0, #2<<3];"
-               "ldp	x23, x24, [%0, #4<<3];"
-               "ldp	x25, x26, [%0, #6<<3];"
-               "ldp	x27, x28, [%0, #8<<3];"
-               "ldp	x29, x30, [%0, #10<<3];"
-               "ldp	 d8,  d9, [%0, #14<<3];"
-               "ldp	d10, d11, [%0, #16<<3];"
-               "ldp	d12, d13, [%0, #18<<3];"
-               "ldp	d14, d15, [%0, #20<<3];"
-               "ldr	x5, [%0, #13<<3];"
-               "mov	sp, x5;"
+  register long int retval_tmp asm("x11") = retval;
+  register void *env_address asm("x10") = &env[0];
+  asm volatile("ld	ra,   0<<3(%0);"
+               "ld	s0,   1<<3(%0);"
+               "ld	s1,   2<<3(%0);"
+               "ld	s2,   3<<3(%0);"
+               "ld	s3,   4<<3(%0);"
+               "ld	s4,   5<<3(%0);"
+               "ld	s5,   6<<3(%0);"
+               "ld	s6,   7<<3(%0);"
+               "ld	s7,   8<<3(%0);"
+               "ld	s8,   9<<3(%0);"
+               "ld	s9,   10<<3(%0);"
+               "ld	s10,  11<<3(%0);"
+               "ld	s11,  12<<3(%0);"
+#ifndef __riscv_float_abi_soft
+               "fld	fs0,  14<<3(%0);"
+               "fld	fs1,  15<<3(%0);"
+               "fld	fs2,  16<<3(%0);"
+               "fld	fs3,  17<<3(%0);"
+               "fld	fs4,  18<<3(%0);"
+               "fld	fs5,  19<<3(%0);"
+               "fld	fs6,  20<<3(%0);"
+               "fld	fs7,  21<<3(%0);"
+               "fld	fs8,  22<<3(%0);"
+               "fld	fs9,  23<<3(%0);"
+               "fld	fs10, 24<<3(%0);"
+               "fld	fs11, 25<<3(%0);"
+#endif
+               "ld	a4, 13<<3(%0);"
+               "mv	sp, a4;"
                // Return the value requested to return through arguments.
                // This should be in x1 given what we requested above.
-               "cmp	%1, #0;"
-               "mov	x0, #1;"
-               "csel	x0, %1, x0, ne;"
-               "br	x30;"
+               "seqz	a0, %1;"
+               "add	a0, a0, %1;"
+               "ret;"
                : "+r"(env_address)
                : "r"(retval_tmp));
-#endif
-  assert(0);
 }
 
 INTERCEPTOR(void, siglongjmp, __hw_sigjmp_buf env, int val) {
-#if 0
   if (env[0].__mask_was_saved)
     // Restore the saved signal mask.
     (void)sigprocmask(SIG_SETMASK, &env[0].__saved_mask,
                       (__hw_sigset_t *)0);
   InternalLongjmp(env[0].__jmpbuf, val);
-#endif
-  assert(0);
 }
 
 // Required since glibc libpthread calls __libc_longjmp on pthread_exit, and
 // _setjmp on start_thread.  Hence we have to intercept the longjmp on
 // pthread_exit so the __hw_jmp_buf order matches.
 INTERCEPTOR(void, __libc_longjmp, __hw_jmp_buf env, int val) {
-#if 0
   InternalLongjmp(env[0].__jmpbuf, val);
-#endif
-  assert(0);
 }
 
 INTERCEPTOR(void, longjmp, __hw_jmp_buf env, int val) {
-#if 0
   InternalLongjmp(env[0].__jmpbuf, val);
-#endif
-  assert(0);
 }
 #undef SIG_BLOCK
 #undef SIG_SETMASK
