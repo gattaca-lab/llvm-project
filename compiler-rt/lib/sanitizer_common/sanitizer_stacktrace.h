@@ -90,8 +90,40 @@ uptr StackTrace::GetPreviousInstructionPc(uptr pc) {
 #elif defined(__sparc__) || defined(__mips__)
   return pc - 8;
 #elif (defined(__riscv) && (__riscv_xlen == 64))
+  // Logic is we check largest possible instruction first and then trying to unwind it if it is not
+  // Most common should be 8 -> 4 -> 6/2
+  // Current check order is 8 -> 6 -> 4 -> 2
+  u8 pc_previous_byte = {0};
+
+  pc_previous_byte = *(u8*)(pc - 8);
+  if ( ((pc_previous_byte & 0x7f) == 0x3f) )
+  {
+     // xxxxxxxxx0111111 | 64 bit |
+     return pc - 8;
+  }
+
+  pc_previous_byte = *(u8*)(pc - 6);
+  if ( ((pc_previous_byte & 0x3f) == 0x1f) )
+  {
+     // xxxxxxxxxx011111 | 48 bit |
+     return pc - 6;
+  }
+
+  pc_previous_byte = *(u8*)(pc - 4);
+  if ( ((pc_previous_byte & 0x3) == 0x3) && ((pc_previous_byte & 0x1c) != 0x1c) )
+  {
+     // xxxxxxxxxxxbbb11 | 32 bit | bbb != 111
+     return pc - 4;
+  }
+
+  pc_previous_byte = *(u8*)(pc - 2);
+  if ( ((pc_previous_byte & 0x3) != 0x3) )
+  {
+     // xxxxxxxxxxxxxxaa | 16 bit | aa != 11
+     return pc - 2;
+  }
+
   assert(0);
-  return pc - 123;
 #else
   return pc - 1;
 #endif
