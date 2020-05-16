@@ -4,6 +4,7 @@
 // RUN: not %env_hwasan_opts=symbolize=0 %run %t 1 2>&1 | FileCheck --check-prefixes=CHECK,RNOSYM %s
 // RUN: not %run %t -1 2>&1 | FileCheck --check-prefixes=CHECK,LSYM %s
 // RUN: not %env_hwasan_opts=symbolize=0 %run %t -1 2>&1 | FileCheck --check-prefixes=CHECK,LNOSYM %s
+#include <stdlib.h>
 
 int x = 1;
 

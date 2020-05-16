@@ -1,6 +1,6 @@
 // RUN: %clang_hwasan -g %s -o %t && not %run %t 2>&1 | FileCheck %s
 // Only implemented for interceptor ABI on AArch64.
-// REQUIRES: aarch64-target-arch
+// REQUIRES: aarch64-target-arch || riscv64-target-arch
 
 #include <setjmp.h>
 #include <stdio.h>
