@@ -8,33 +8,45 @@ ASM_HIDDEN(COMMON_INTERCEPTOR_SPILL_AREA)
 .globl ASM_WRAPPER_NAME(vfork)
 ASM_TYPE_FUNCTION(ASM_WRAPPER_NAME(vfork))
 ASM_WRAPPER_NAME(vfork):
-#if 0
-        // Save x30 in the off-stack spill area.
-        stp     xzr, x30, [sp, #-16]!
-        bl      COMMON_INTERCEPTOR_SPILL_AREA
-        ldp     xzr, x30, [sp], 16
-        str     x30, [x0]
+        // Save ra in the off-stack spill area.
+        // allocate space on stack
+        addi    sp, sp, -16
+        // store ra value 
+        sd      ra, 8(sp)
+        call    COMMON_INTERCEPTOR_SPILL_AREA
+        // restore previous values from stack
+        ld      ra, 8(sp)
+        // adjust stack
+        addi    sp, sp, 16
+        // store ra by x10??
+        sd      ra, 0(x10)
 
         // Call real vfork. This may return twice. User code that runs between the first and the second return
         // may clobber the stack frame of the interceptor; that's why it does not have a frame.
-        adrp    x0, _ZN14__interception10real_vforkE
-        ldr     x0, [x0, :lo12:_ZN14__interception10real_vforkE]
-        blr     x0
+        la x10, _ZN14__interception10real_vforkE
+        ld x10, 0(x10)
+        jalr x10
 
-        stp     x0, xzr, [sp, #-16]!
-        cmp     x0, #0
-        b.eq   .L_exit
+        // adjust stack
+        addi    sp, sp, -16
+        // store x10 by adjusted stack
+        sd      x10, 8(sp)
+        // jump to exit label if x10 is 0
+        beqz    x10, .L_exit
 
         // x0 != 0 => parent process. Clear stack shadow.
-        add    x0, sp, #16
-        bl     COMMON_INTERCEPTOR_HANDLE_VFORK
+        // put old sp to x10
+        addi   x10, sp, 16
+        call   COMMON_INTERCEPTOR_HANDLE_VFORK
 
 .L_exit:
-        // Restore x30.
-        bl     COMMON_INTERCEPTOR_SPILL_AREA
-        ldr    x30, [x0]
-        ldp    x0, xzr, [sp], 16
-#endif
+        // Restore ra
+        call   COMMON_INTERCEPTOR_SPILL_AREA
+        ld     ra, 0(x10)
+        // load value by stack
+        ld     x10, 8(sp)
+        // adjust stack
+        addi   sp, sp, 16
         ret
 ASM_SIZE(vfork)
 
