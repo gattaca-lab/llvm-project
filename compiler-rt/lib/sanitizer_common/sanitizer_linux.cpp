@@ -1339,7 +1339,6 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                     int *parent_tidptr, void *newtls, int *child_tidptr) {
   long long res;
   assert(0);
-#if 0
   if (!fn || !child_stack)
     return -EINVAL;
   CHECK_EQ(0, (uptr)child_stack % 16);
@@ -1347,36 +1346,45 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
   ((unsigned long long *)child_stack)[0] = (uptr)fn;
   ((unsigned long long *)child_stack)[1] = (uptr)arg;
 
-  register int (*__fn)(void *)  __asm__("x0") = fn;
-  register void *__stack __asm__("x1") = child_stack;
-  register int   __flags __asm__("x2") = flags;
-  register void *__arg   __asm__("x3") = arg;
-  register int  *__ptid  __asm__("x4") = parent_tidptr;
-  register void *__tls   __asm__("x5") = newtls;
-  register int  *__ctid  __asm__("x6") = child_tidptr;
+  register int (*__fn)(void *)  __asm__("a0") = fn;
+  register void *__stack __asm__("a1") = child_stack;
+  register int   __flags __asm__("a2") = flags;
+  register void *__arg   __asm__("a3") = arg;
+  register int  *__ptid  __asm__("a4") = parent_tidptr;
+  register void *__tls   __asm__("a5") = newtls;
+  register int  *__ctid  __asm__("a6") = child_tidptr;
+
+#if 0
+    int clone(int (*fn)(void *), 
+              void *child_stack,
+              int flags, 
+              pid_t *ptid, 
+              void *newtls,
+              pid_t *ctid */ 
+#endif
 
   __asm__ __volatile__(
-                       "mov x0,x2\n" /* flags  */
-                       "mov x2,x4\n" /* ptid  */
-                       "mov x3,x5\n" /* tls  */
-                       "mov x4,x6\n" /* ctid  */
-                       "mov x8,%9\n" /* clone  */
+                       "mov a0,a2\n" /* flags  */
+                       "mov a2,a4\n" /* ptid  */
+                       "mov a3,a5\n" /* tls  */
+                       "mov a4,a6\n" /* ctid  */
+                       "mv  a7,%9\n" /* clone  */
 
-                       "svc 0x0\n"
+                       "ecall\n"
 
                        /* if (%r0 != 0)
                         *   return %r0;
                         */
-                       "cmp x0, #0\n"
-                       "bne 1f\n"
+                       "bnez 1f\n"
 
                        /* In the child, now. Call "fn(arg)". */
-                       "ldp x1, x0, [sp], #16\n"
-                       "blr x1\n"
+                       "ld  a0,  8(sp)\n"
+                       "ld  a1, 16(sp)\n"
+                       "jalr a1\n"
 
                        /* Call _exit(%r0).  */
-                       "mov x8, %10\n"
-                       "svc 0x0\n"
+                       "mv  a7, %10\n"
+                       "ecall\n"
                      "1:\n"
 
                        : "=r" (res)
@@ -1384,8 +1392,7 @@ uptr internal_clone(int (*fn)(void *), void *child_stack, int flags, void *arg,
                          "r"(__fn), "r"(__stack), "r"(__flags), "r"(__arg),
                          "r"(__ptid), "r"(__tls), "r"(__ctid),
                          "i"(__NR_clone), "i"(__NR_exit)
-                       : "x30", "memory");
-#endif
+                       : "ra", "memory");
   return res;
 }
 #elif defined(__aarch64__)
