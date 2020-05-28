@@ -125,6 +125,8 @@ void BufferedStackTrace::UnwindFast(uptr pc, uptr bp, uptr stack_top,
     uhwptr pc1 = caller_frame[2];
 #elif defined(__s390__)
     uhwptr pc1 = frame[14];
+#elif defined(__riscv)
+    uhwptr pc1 = frame[-1];
 #else
     uhwptr pc1 = frame[1];
 #endif
