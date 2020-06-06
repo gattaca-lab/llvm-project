@@ -405,8 +405,12 @@ void HWAddressSanitizer::initializeModule() {
               appendToGlobalCtors(M, Ctor, 0, Ctor);
             });
 
+    // Currently we do not instrumentation of globals for RISCV
+    // The reason is that the existing memory models does not allow us
+    // to use tagged pointers in la/lla expressions
     bool InstrumentGlobals =
-        ClGlobals.getNumOccurrences() ? ClGlobals : NewRuntime;
+        ClGlobals.getNumOccurrences() ? ClGlobals :
+        (NewRuntime && !(TargetTriple.getArch() == Triple::riscv64));
     if (InstrumentGlobals)
       instrumentGlobals();
 
