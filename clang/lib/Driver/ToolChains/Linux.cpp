@@ -936,7 +936,7 @@ SanitizerMask Linux::getSupportedSanitizers() const {
   const bool IsX86_64 = getTriple().getArch() == llvm::Triple::x86_64;
   const bool IsMIPS = getTriple().isMIPS32();
   const bool IsMIPS64 = getTriple().isMIPS64();
-  const bool IsRISCV64 = getTriple().isRISCV();
+  const bool IsRISCV64 = getTriple().isRISCV64();
   const bool IsPowerPC64 = getTriple().getArch() == llvm::Triple::ppc64 ||
                            getTriple().getArch() == llvm::Triple::ppc64le;
   const bool IsAArch64 = getTriple().getArch() == llvm::Triple::aarch64 ||
