@@ -1469,13 +1469,13 @@ void HWAddressSanitizer::instrumentGlobal(GlobalVariable *GV, uint8_t Tag) {
 #else
     IRBuilder<> Builder(cast<Instruction>(Usr));
 #endif
-+    Value* IntCast   = Builder.CreatePtrToInt(Alias, Int64Ty, "PtrCast");
-+    Value* TaggedInt = Builder.CreateOr(IntCast, uint64_t(Tag) << 56ull,
-+                                        "TaggedInt");
-+    Value* TaggedPtr = Builder.CreateIntToPtr(TaggedInt, GV->getType(),
-+                                              "TaggedPtr");
-+    Usr->replaceUsesOfWith(Alias, TaggedPtr);
-+  }
+    Value* IntCast   = Builder.CreatePtrToInt(Alias, Int64Ty, "PtrCast");
+    Value* TaggedInt = Builder.CreateOr(IntCast, uint64_t(Tag) << 56ull,
+                                        "TaggedInt");
+    Value* TaggedPtr = Builder.CreateIntToPtr(TaggedInt, GV->getType(),
+                                              "TaggedPtr");
+    Usr->replaceUsesOfWith(Alias, TaggedPtr);
+  }
 }
 
 void HWAddressSanitizer::instrumentGlobals() {
