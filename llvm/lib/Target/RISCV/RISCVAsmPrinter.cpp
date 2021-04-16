@@ -82,7 +82,6 @@ public:
 
 private:
   void emitAttributes();
-  void EmitEndOfAsmFile(Module &M) override;
 };
 }
 
@@ -208,6 +207,7 @@ void RISCVAsmPrinter::emitEndOfAsmFile(Module &M) {
 
   if (TM.getTargetTriple().isOSBinFormatELF())
     RTS.finishAttributeSection();
+  EmitHwasanMemaccessSymbols(M);
 }
 
 void RISCVAsmPrinter::emitAttributes() {
@@ -257,10 +257,6 @@ void RISCVAsmPrinter::LowerHWASAN_CHECK_MEMACCESS(const MachineInstr &MI) {
                      .addExpr(Expr));
 }
 
-void RISCVAsmPrinter::EmitEndOfAsmFile(Module &M) {
-  EmitHwasanMemaccessSymbols(M);
-}
-
 void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
   if (HwasanMemaccessSymbols.empty())
     return;
@@ -292,44 +288,44 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
     OutStreamer->SwitchSection(OutContext.getELFSection(
         ".text.hot", ELF::SHT_PROGBITS,
         ELF::SHF_EXECINSTR | ELF::SHF_ALLOC | ELF::SHF_GROUP, 0,
-        Sym->getName()));
+        Sym->getName(), /*IsComdat=*/true));
 
-    OutStreamer->EmitSymbolAttribute(Sym, MCSA_ELF_TypeFunction);
-    OutStreamer->EmitSymbolAttribute(Sym, MCSA_Weak);
-    OutStreamer->EmitSymbolAttribute(Sym, MCSA_Hidden);
-    OutStreamer->EmitLabel(Sym);
+    OutStreamer->emitSymbolAttribute(Sym, MCSA_ELF_TypeFunction);
+    OutStreamer->emitSymbolAttribute(Sym, MCSA_Weak);
+    OutStreamer->emitSymbolAttribute(Sym, MCSA_Hidden);
+    OutStreamer->emitLabel(Sym);
 
     /* Extract shadow offset from ptr */
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SLLI)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SLLI)
                                      .addReg(RISCV::X6)
                                      .addReg(Reg)
                                      .addImm(8),
                                  *STI);
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SRLI)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SRLI)
                                      .addReg(RISCV::X6)
                                      .addReg(RISCV::X6)
                                      .addImm(12),
                                  *STI);
     /* load shadow tag in X6, X5 contains shadow base */
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADD)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADD)
                                      .addReg(RISCV::X6)
                                      .addReg(RISCV::X5)
                                      .addReg(RISCV::X6),
                                  *STI);
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::LBU)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::LBU)
                                      .addReg(RISCV::X6)
                                      .addReg(RISCV::X6)
                                      .addImm(0),
                                  *STI);
     /* Extract tag from X5 and compare it with loaded tag from shadow */
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitInstruction(
         MCInstBuilder(RISCV::SRLI)
             .addReg(RISCV::X7)
             .addReg(Reg)
             .addImm(56),
         *STI);
     MCSymbol *HandleMismatchOrPartialSym = OutContext.createTempSymbol();
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitInstruction(
         MCInstBuilder(RISCV::BNE)
             .addReg(RISCV::X7)
             .addReg(RISCV::X6)
@@ -337,30 +333,30 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
                                              OutContext)),
         *STI);
     MCSymbol *ReturnSym = OutContext.createTempSymbol();
-    OutStreamer->EmitLabel(ReturnSym);
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitLabel(ReturnSym);
+    OutStreamer->emitInstruction(
         MCInstBuilder(RISCV::JALR)
                 .addReg(RISCV::X0)
                 .addReg(RISCV::X1)
                 .addImm(0),
                 *STI);
-    OutStreamer->EmitLabel(HandleMismatchOrPartialSym);
+    OutStreamer->emitLabel(HandleMismatchOrPartialSym);
 
     if (IsShort) {
-      OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
+      OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADDI)
                                        .addReg(RISCV::X28)
                                        .addReg(RISCV::X0)
                                        .addImm(16),
                                    *STI);
       MCSymbol *HandleMismatchSym = OutContext.createTempSymbol();
-      OutStreamer->EmitInstruction(
+      OutStreamer->emitInstruction(
           MCInstBuilder(RISCV::BGEU)
               .addReg(RISCV::X6)
               .addReg(RISCV::X28)
               .addExpr(MCSymbolRefExpr::create(HandleMismatchSym, OutContext)),
           *STI);
 
-      OutStreamer->EmitInstruction(
+      OutStreamer->emitInstruction(
           MCInstBuilder(RISCV::ANDI)
               .addReg(RISCV::X28)
               .addReg(Reg)
@@ -368,37 +364,37 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
           *STI);
       unsigned Size = 1 << (AccessInfo & 0xf);
       if (Size != 1)
-        OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
+        OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADDI)
                                          .addReg(RISCV::X28)
                                          .addReg(RISCV::X28)
                                          .addImm(Size - 1),
                                      *STI);
-      OutStreamer->EmitInstruction(
+      OutStreamer->emitInstruction(
           MCInstBuilder(RISCV::BGE)
               .addReg(RISCV::X28)
               .addReg(RISCV::X6)
               .addExpr(MCSymbolRefExpr::create(HandleMismatchSym, OutContext)),
           *STI);
 
-      OutStreamer->EmitInstruction(
+      OutStreamer->emitInstruction(
           MCInstBuilder(RISCV::ORI)
               .addReg(RISCV::X6)
               .addReg(Reg)
               .addImm(0xF),
           *STI);
-      OutStreamer->EmitInstruction(MCInstBuilder(RISCV::LBU)
+      OutStreamer->emitInstruction(MCInstBuilder(RISCV::LBU)
                                        .addReg(RISCV::X6)
                                        .addReg(RISCV::X6)
                                        .addImm(0),
                                    *STI);
-      OutStreamer->EmitInstruction(
+      OutStreamer->emitInstruction(
           MCInstBuilder(RISCV::BEQ)
               .addReg(RISCV::X6)
               .addReg(RISCV::X7)
               .addExpr(MCSymbolRefExpr::create(ReturnSym, OutContext)),
           *STI);
 
-      OutStreamer->EmitLabel(HandleMismatchSym);
+      OutStreamer->emitLabel(HandleMismatchSym);
     }
 
     // +---------------------------------+
@@ -420,45 +416,45 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
     // +---------------------------------+
     // | Saved x0, likewise above.       |
     // +---------------------------------+ <-- [x30 / SP]
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADDI)
                                      .addReg(RISCV::X2)
                                      .addReg(RISCV::X2)
                                      .addImm(-256 - 8 * 2),
                                  *STI);
 
     // x10 - arg #0 (a0)
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X10)
                                      .addReg(RISCV::X2)
                                      .addImm(8 * 10),
                                  *STI);
     // x11 - arg #1 (a1)
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X11)
                                      .addReg(RISCV::X2)
                                      .addImm(8 * 11),
                                  *STI);
 
     // x8 - fp
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X8)
                                      .addReg(RISCV::X2)
                                      .addImm(32 * 8),
                                  *STI);
     // x1 - ra (in our case it is corrupted most likely)
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::SD)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::SD)
                                      .addReg(RISCV::X1)
                                      .addReg(RISCV::X2)
                                      .addImm(33 * 8),
                                  *STI);
 
     if (Reg != RISCV::X10)
-      OutStreamer->EmitInstruction(MCInstBuilder(RISCV::OR)
+      OutStreamer->emitInstruction(MCInstBuilder(RISCV::OR)
                                        .addReg(RISCV::X10)
                                        .addReg(RISCV::X0)
                                        .addReg(Reg),
                                    *STI);
-    OutStreamer->EmitInstruction(MCInstBuilder(RISCV::ADDI)
+    OutStreamer->emitInstruction(MCInstBuilder(RISCV::ADDI)
                                      .addReg(RISCV::X11)
                                      .addReg(RISCV::X0)
                                      .addImm(AccessInfo),
@@ -481,24 +477,24 @@ void RISCVAsmPrinter::EmitHwasanMemaccessSymbols(Module &M) {
     }
     auto ExprHi = RISCVMCExpr::create(HwasanTagMismatchRef, VKHi, OutContext);
 
-    MCSymbol *TmpLabel = OutContext.createTempSymbol("pcrel_hi", /* AlwaysAddSuffix */ true, /* CanBeUnnamed */ false);
-    OutStreamer->EmitLabel(TmpLabel);
+    MCSymbol *TmpLabel = OutContext.createTempSymbol("pcrel_hi", /* AlwaysAddSuffix */ true);
+    OutStreamer->emitLabel(TmpLabel);
     const MCExpr *ExprLo = RISCVMCExpr::create(MCSymbolRefExpr::create(TmpLabel, OutContext),
                                                RISCVMCExpr::VK_RISCV_PCREL_LO, OutContext);
 
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitInstruction(
         MCInstBuilder(RISCV::AUIPC)
             .addReg(RISCV::X6)
             .addExpr(ExprHi),
         *STI);
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitInstruction(
         MCInstBuilder(SecondOpcode)
             .addReg(RISCV::X6)
             .addReg(RISCV::X6)
             .addExpr(ExprLo),
         *STI);
 
-    OutStreamer->EmitInstruction(
+    OutStreamer->emitInstruction(
         MCInstBuilder(RISCV::JALR).addReg(RISCV::X0).addReg(RISCV::X6).addImm(0), *STI);
   }
 }
