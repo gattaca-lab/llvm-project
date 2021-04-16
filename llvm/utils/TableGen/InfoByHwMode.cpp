@@ -46,8 +46,13 @@ ValueTypeByHwMode::ValueTypeByHwMode(Record *R, MVT T) : ValueTypeByHwMode(T) {
 bool ValueTypeByHwMode::operator== (const ValueTypeByHwMode &T) const {
   assert(isValid() && T.isValid() && "Invalid type in assignment");
   bool Simple = isSimple();
-  if (Simple != T.isSimple())
+  if (Simple != T.isSimple()) {
+    if (T.isSimple()) {
+      return std::any_of(Map.begin(), Map.end(),
+            [&T](const auto &KV) { return KV.second == T.getSimple(); });
+    }
     return false;
+  }
   if (Simple)
     return getSimple() == T.getSimple();
 

@@ -769,9 +769,13 @@ public:
     return getArch() == Triple::ppc64 || getArch() == Triple::ppc64le;
   }
 
+  bool isRISCV64() const {
+    return getArch() == Triple::riscv64;
+  }
+
   /// Tests whether the target is RISC-V (32- and 64-bit).
   bool isRISCV() const {
-    return getArch() == Triple::riscv32 || getArch() == Triple::riscv64;
+    return getArch() == Triple::riscv32 || isRISCV64();
   }
 
   /// Tests whether the target is SystemZ.

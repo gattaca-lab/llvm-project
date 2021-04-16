@@ -36,6 +36,14 @@ __attribute__((always_inline)) static void SigTrap(uptr p) {
       "int3\n"
       "nopl %c0(%%rax)\n" ::"n"(0x40 + X),
       "D"(p));
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  asm volatile(
+      "mv x10, %0\n"
+      "ebreak\n"
+      "addiw x0, x0, %1\n" 
+      :
+      : "r"(p), "n"(0x40 + X) 
+      : "memory", "x10");
 #else
   // FIXME: not always sigill.
   __builtin_trap();
@@ -56,6 +64,14 @@ __attribute__((always_inline)) static void SigTrap(uptr p, uptr size) {
       "int3\n"
       "nopl %c0(%%rax)\n" ::"n"(0x40 + X),
       "D"(p), "S"(size));
+#elif (defined(__riscv) && (__riscv_xlen == 64))
+  asm volatile(
+      "mv x10, %0\n"
+      "ebreak\n"
+      "addiw x0, x0, %1\n" 
+      :
+      : "r"(p), "n"(0x40 + X) 
+      : "memory", "x10");
 #else
   __builtin_trap();
 #endif
@@ -71,7 +87,7 @@ __attribute__((always_inline, nodebug)) static bool PossiblyShortTagMatches(
     return false;
   if ((ptr & (kShadowAlignment - 1)) + sz > mem_tag)
     return false;
-#ifndef __aarch64__
+#if !defined(__aarch64__) && !defined(SANITIZER_RISCV64) 
   ptr = UntagAddr(ptr);
 #endif
   return *(u8 *)(ptr | (kShadowAlignment - 1)) == ptr_tag;

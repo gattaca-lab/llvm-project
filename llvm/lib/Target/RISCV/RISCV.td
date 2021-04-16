@@ -11,6 +11,10 @@ include "llvm/Target/Target.td"
 //===----------------------------------------------------------------------===//
 // RISC-V subtarget features and instruction predicates.
 //===----------------------------------------------------------------------===//
+def FeatureTaggedGlobals : SubtargetFeature<"tagged-globals",
+    "AllowTaggedGlobals",
+    "true", "Use an instruction sequence for taking the address of a global "
+    "that allows a memory tag in the upper address bits">;
 
 def FeatureStdExtM
     : SubtargetFeature<"m", "HasStdExtM", "true",

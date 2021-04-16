@@ -59,6 +59,7 @@ class RISCVSubtarget : public RISCVGenSubtargetInfo {
   bool IsRV32E = false;
   bool EnableLinkerRelax = false;
   bool EnableRVCHintInstrs = true;
+  bool AllowTaggedGlobals = false;
   bool EnableSaveRestore = false;
   unsigned XLen = 32;
   MVT XLenVT = MVT::i32;

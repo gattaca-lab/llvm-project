@@ -21,6 +21,7 @@
 #include "llvm/IR/Attributes.h"
 #include "llvm/IR/BasicBlock.h"
 #include "llvm/IR/Constant.h"
+#include "llvm/IR/NoFolder.h"
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/DataLayout.h"
 #include "llvm/IR/DebugInfoMetadata.h"
@@ -508,7 +509,7 @@ void HWAddressSanitizer::initializeModule() {
   UseShortGranules =
       ClUseShortGranules.getNumOccurrences() ? ClUseShortGranules : NewRuntime;
   OutlinedChecks =
-      TargetTriple.isAArch64() && TargetTriple.isOSBinFormatELF() &&
+      (TargetTriple.isAArch64() || TargetTriple.isRISCV64()) && TargetTriple.isOSBinFormatELF() &&
       (ClInlineAllChecks.getNumOccurrences() ? !ClInlineAllChecks : !Recover);
 
   if (ClMatchAllTag.getNumOccurrences()) {
@@ -528,8 +529,12 @@ void HWAddressSanitizer::initializeModule() {
 
   if (!CompileKernel) {
     createHwasanCtorComdat();
-    bool InstrumentGlobals =
-        ClGlobals.getNumOccurrences() ? ClGlobals : NewRuntime;
+    // Currently we do not instrumentation of globals for RISCV
+    // The reason is that the existing memory models does not allow us
+    // to use tagged pointers in la/lla expressions
+     bool InstrumentGlobals =
+        ClGlobals.getNumOccurrences() ? ClGlobals :
+        (NewRuntime && !TargetTriple.isRISCV64());
     if (InstrumentGlobals && !UsePageAliases)
       instrumentGlobals();
 
@@ -708,7 +713,7 @@ static size_t TypeSizeToSizeIndex(uint32_t TypeSize) {
 }
 
 void HWAddressSanitizer::untagPointerOperand(Instruction *I, Value *Addr) {
-  if (TargetTriple.isAArch64() || TargetTriple.getArch() == Triple::x86_64)
+  if (TargetTriple.isAArch64() || TargetTriple.getArch() == Triple::x86_64 || TargetTriple.isRISCV64())
     return;
 
   IRBuilder<> IRB(I);
@@ -746,7 +751,9 @@ void HWAddressSanitizer::instrumentMemAccessInline(Value *Ptr, bool IsWrite,
     IRB.CreateCall(Intrinsic::getDeclaration(
                        M, UseShortGranules
                               ? Intrinsic::hwasan_check_memaccess_shortgranules
-                              : Intrinsic::hwasan_check_memaccess),
+                              : TargetTriple.isRISCV64() ? // In case of RISCV always use V2
+                                    Intrinsic::hwasan_check_memaccess_shortgranules : 
+                                    Intrinsic::hwasan_check_memaccess),
                    {ShadowBase, Ptr, ConstantInt::get(Int32Ty, AccessInfo)});
     return;
   }
@@ -807,6 +814,14 @@ void HWAddressSanitizer::instrumentMemAccessInline(Value *Ptr, bool IsWrite,
               itostr(0x40 + (AccessInfo & HWASanAccessInfo::RuntimeMask)) +
               "(%rax)",
           "{rdi}",
+          /*hasSideEffects=*/true);
+      break;
+    case Triple::riscv64:
+      // The signal handler will find the data address in rdi.
+      Asm = InlineAsm::get(
+          FunctionType::get(IRB.getVoidTy(), {PtrLong->getType()}, false),
+          "ebreak\naddiw x0, x0, " + itostr(0x40 + AccessInfo), "{x10}",
+          "{x11}",
           /*hasSideEffects=*/true);
       break;
     case Triple::aarch64:
@@ -1418,17 +1433,49 @@ void HWAddressSanitizer::instrumentGlobal(GlobalVariable *GV, uint8_t Tag) {
     appendToCompilerUsed(M, Descriptor);
   }
 
-  Constant *Aliasee = ConstantExpr::getIntToPtr(
+  bool UseTaggedAlias = !TargetTriple.isRISCV64();
+  Constant *Aliasee = nullptr;
+  if (UseTaggedAlias) {
+    Aliasee = ConstantExpr::getIntToPtr(
       ConstantExpr::getAdd(
           ConstantExpr::getPtrToInt(NewGV, Int64Ty),
           ConstantInt::get(Int64Ty, uint64_t(Tag) << kPointerTagShift)),
       GV->getType());
+  } else {
+    Aliasee = ConstantExpr::getIntToPtr(
+      ConstantExpr::getPtrToInt(NewGV, Int64Ty), GV->getType());
+  }
   auto *Alias = GlobalAlias::create(GV->getValueType(), GV->getAddressSpace(),
                                     GV->getLinkage(), "", Aliasee, &M);
   Alias->setVisibility(GV->getVisibility());
   Alias->takeName(GV);
   GV->replaceAllUsesWith(Alias);
   GV->eraseFromParent();
+
+  if (UseTaggedAlias)
+    return;
+  // Some architectures have code models wich make it impossible to properly
+  // lower 64-bit constants. For example: RISCV has only medlow and medany.
+  // Thus we implement the hack which forces compiler to always retag address
+  // of a global
+  for (auto* Usr: Alias->users()) {
+    if (!isa<Instruction>(Usr)) {
+      // TODO: stuff like contant expressions are not supported currently
+      LLVM_DEBUG(dbgs() << "unsupported user: " << *Usr << "\n");
+      continue;
+    }
+#ifndef NDEBUG
+    IRBuilder<llvm::NoFolder> Builder(cast<Instruction>(Usr));
+#else
+    IRBuilder<> Builder(cast<Instruction>(Usr));
+#endif
++    Value* IntCast   = Builder.CreatePtrToInt(Alias, Int64Ty, "PtrCast");
++    Value* TaggedInt = Builder.CreateOr(IntCast, uint64_t(Tag) << 56ull,
++                                        "TaggedInt");
++    Value* TaggedPtr = Builder.CreateIntToPtr(TaggedInt, GV->getType(),
++                                              "TaggedPtr");
++    Usr->replaceUsesOfWith(Alias, TaggedPtr);
++  }
 }
 
 void HWAddressSanitizer::instrumentGlobals() {
