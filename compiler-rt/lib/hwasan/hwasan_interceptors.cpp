@@ -302,7 +302,7 @@ INTERCEPTOR(void, longjmp, __hw_jmp_buf env, int val) {
 #undef SIG_BLOCK
 #undef SIG_SETMASK
 
-#elif defined(SANITIZER_RISCV64)
+#elif (defined(__riscv) && (__riscv_xlen == 64))
 // Get and/or change the set of blocked signals.
 extern "C" int sigprocmask(int __how, const __hw_sigset_t *__restrict __set,
                            __hw_sigset_t *__restrict __oset);

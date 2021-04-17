@@ -42,7 +42,7 @@ __interceptor_setjmp:
   CFI_ENDPROC
 ASM_SIZE(__interceptor_setjmp)
 
-#if SANITIZER_ANDROID
+#if (defined(__riscv) && (__riscv_xlen == 64))
 // Bionic also defines a function `setjmp` that calls `sigsetjmp` saving the
 // current signal.
 .global __interceptor_setjmp_bionic
@@ -100,7 +100,7 @@ ALIAS __interceptor_sigsetjmp, __sigsetjmp
 ALIAS __interceptor_setjmp, _setjmp
 .weak _setjmp
 
-#elif defined(SANITIZER_RISCV64)
+#elif (defined(__riscv) && (__riscv_xlen == 64))
 
 .section .text
 .file "hwasan_setjmp.S"

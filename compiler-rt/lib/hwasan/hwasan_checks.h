@@ -87,7 +87,7 @@ __attribute__((always_inline, nodebug)) static bool PossiblyShortTagMatches(
     return false;
   if ((ptr & (kShadowAlignment - 1)) + sz > mem_tag)
     return false;
-#if !defined(__aarch64__) && !defined(SANITIZER_RISCV64) 
+#if !defined(__aarch64__) && !(defined(__riscv) && (__riscv_xlen == 64))
   ptr = UntagAddr(ptr);
 #endif
   return *(u8 *)(ptr | (kShadowAlignment - 1)) == ptr_tag;

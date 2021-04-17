@@ -389,7 +389,7 @@ static AccessInfo GetAccessInfo(siginfo_t *info, ucontext_t *uc) {
   const uptr size =
       size_log == 0xf ? uc->uc_mcontext.gregs[REG_RSI] : 1U << size_log;
 
-#elif defined(SANITIZER_RISCV64)
+#elif (defined(__riscv) && (__riscv_xlen == 64))
   // Access type is encoded in the instruction following EBREAK as
   // ADDI x0, x0, [0x40 + 0xXY]. For Y == 0xF, access size is stored in
   // X11 register. Access address is always in X10 register.

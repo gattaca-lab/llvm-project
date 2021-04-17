@@ -183,7 +183,7 @@ struct __hw_jmp_buf_struct {
 };
 typedef struct __hw_jmp_buf_struct __hw_jmp_buf[1];
 typedef struct __hw_jmp_buf_struct __hw_sigjmp_buf[1];
-#elif (SANITIZER_RISCV64)
+#elif (defined(__riscv) && (__riscv_xlen == 64))
 // For both bionic and glibc __sigset_t is an unsigned long.
 typedef unsigned long __hw_sigset_t;
 // Setjmp and longjmp implementations are platform specific, and hence the

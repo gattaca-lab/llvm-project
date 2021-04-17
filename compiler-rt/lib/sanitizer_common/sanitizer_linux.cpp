@@ -1938,7 +1938,8 @@ SignalContext::WriteFlag SignalContext::GetWriteFlag() const {
     }
     else {
       // shouldn't get here anyhow
-      assert(0);
+//      assert(0);
+        ;
     }
     if (read) return READ;
     else if (write) return WRITE;

@@ -23,7 +23,7 @@
 #include "sanitizer_common/sanitizer_common.h"
 #include "sanitizer_common/sanitizer_ring_buffer.h"
 
-#if !defined(__aarch64__) && !defined(__x86_64__) && !defined(SANITIZER_RISCV64)
+#if !defined(__aarch64__) && !defined(__x86_64__) && !(defined(__riscv) && (__riscv_xlen == 64))
 #error Unsupported platform
 #endif
 

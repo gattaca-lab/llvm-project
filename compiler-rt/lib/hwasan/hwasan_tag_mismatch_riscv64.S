@@ -1,7 +1,7 @@
 #include "sanitizer_common/sanitizer_asm.h"
 
 // The content of this file is RISCV64-only:
-#if defined(SANITIZER_RISCV64) 
+#if (defined(__riscv) && (__riscv_xlen == 64))
 
 // The responsibility of the HWASan entry point in compiler-rt is to primarily
 // readjust the stack from the callee and save the current register values to
